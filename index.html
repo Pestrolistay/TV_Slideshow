@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TV Slideshow - Working Cloud & Local</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            font-family: 'Roboto', Arial, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        #slideshow-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+        
+        #slideshow-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            transition: opacity 0.8s ease-in-out;
+        }
+        
+        /* Main Menu */
+        #main-menu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        #main-menu.hidden {
+            display: none;
+        }
+        
+        .menu-title {
+            color: white;
+            font-size: 32px;
+            margin: 20px 0;
+            font-weight: 300;
+        }
+        
+        .menu-section {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+            width: 90%;
+            max-width: 700px;
+        }
+        
+        .menu-section h3 {
+            color: #4285f4;
+            margin-bottom: 15px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+        
+        input, select, textarea {
+            padding: 12px 15px;
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            border-radius: 8px;
+            font-size: 16px;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        select {
+            cursor: pointer;
+        }
+        
+        select option {
+            background: #333;
+            color: white;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #4285f4;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #3367d6;
+        }
+        
+        .btn-success {
+            background: #0f9d58;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #0b8043;
+        }
+        
+        .btn-warning {
+            background: #f4b400;
+            color: #333;
+        }
+        
+        .btn-danger {
+            background: #db4437;
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.5);
+            color: white;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #4285f4;
+            border-color: #4285f4;
+        }
+        
+        /* File preview */
+        .file-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px;
+            color: white;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-size: 14px;
+        }
+        
+        .file-item:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* Controls bar */
+        #controls-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+        
+        #controls-bar.visible {
+            opacity: 1;
+        }
+        
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .control-btn:hover {
+            background: rgba(255,255,255,0.4);
+            transform: scale(1.1);
+        }
+        
+        .control-btn.play-btn {
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+        }
+        
+        /* Info overlay */
+        #info-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 16px;
+            z-index: 100;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .info-badge {
+            background: #4285f4;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 14px;
+        }
+        
+        /* Quick settings */
+        #quick-settings {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        #quick-settings.visible {
+            opacity: 1;
+        }
+        
+        .setting-chip {
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all 0.3s;
+        }
+        
+        .setting-chip:hover {
+            background: rgba(66,133,244,0.5);
+        }
+        
+        /* Status messages */
+        .status-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 20px 40px;
+            border-radius: 15px;
+            z-index: 2000;
+            font-size: 18px;
+            pointer-events: none;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid #4285f4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .keyboard-hints {
+            display: flex;
+            gap: 25px;
+            font-size: 13px;
+            color: #aaa;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .key-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .key-icon {
+            background: rgba(255,255,255,0.2);
+            padding: 3px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .instructions {
+            color: #aaa;
+            font-size: 13px;
+            margin-top: 8px;
+            line-height: 1.6;
+        }
+        
+        .example {
+            color: #4285f4;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Menu -->
+    <div id="main-menu">
+        <div class="menu-title">📺 TV Slideshow</div>
+        
+        <!-- Method 1: Google Drive Direct Links -->
+        <div class="menu-section">
+            <h3>🔵 Google Drive</h3>
+            <div class="instructions">
+                <strong>Как получить ссылки:</strong><br>
+                1. Откройте папку Google Drive в браузере<br>
+                2. Выделите все фото (Ctrl+A)<br>
+                3. Нажмите "Поделиться" → "Копировать ссылки"<br>
+                4. Вставьте ссылки в поле ниже
+            </div>
+            <textarea id="gdrive-links" placeholder="Вставьте ссылки Google Drive (каждая с новой строки или через запятую)..."></textarea>
+            <div class="input-group">
+                <button class="btn btn-primary" onclick="loadGoogleDriveLinks()">
+                    📥 Загрузить из Google Drive
+                </button>
+                <button class="btn btn-outline" onclick="pasteFromClipboard()">
+                    📋 Вставить из буфера
+                </button>
+            </div>
+        </div>
+        
+        <!-- Method 2: Direct Image URLs -->
+        <div class="menu-section">
+            <h3>🔗 Прямые ссылки на изображения</h3>
+            <textarea id="direct-urls" placeholder="Вставьте прямые ссылки на изображения (каждая с новой строки или через запятую)..."></textarea>
+            <button class="btn btn-success" onclick="loadDirectUrls()">
+                🖼 Загрузить изображения
+            </button>
+        </div>
+        
+        <!-- Method 3: Local Files -->
+        <div class="menu-section">
+            <h3>📱 Локальные файлы (самый надёжный способ)</h3>
+            <div class="input-group">
+                <button class="btn btn-success" onclick="selectLocalFiles()">
+                    🖼 Выбрать изображения
+                </button>
+                <button class="btn btn-outline" onclick="selectLocalFolder()">
+                    📂 Выбрать папку
+                </button>
+            </div>
+            <input type="file" id="file-input" multiple accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+            <input type="file" id="folder-input" webkitdirectory multiple accept="image/*" style="display: none;" onchange="handleFileSelect(event)">
+            <div id="local-preview" class="file-list" style="display: none;"></div>
+        </div>
+        
+        <!-- Settings -->
+        <div class="menu-section">
+            <h3>⚙ Настройки</h3>
+            <div class="input-group">
+                <label style="color: white; min-width: 100px;">Интервал:</label>
+                <select id="interval-select">
+                    <option value="2">2 секунды</option>
+                    <option value="5" selected>5 секунд</option>
+                    <option value="10">10 секунд</option>
+                    <option value="15">15 секунд</option>
+                    <option value="30">30 секунд</option>
+                    <option value="60">1 минута</option>
+                    <option value="120">2 минуты</option>
+                    <option value="300">5 минут</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label style="color: white; min-width: 100px;">Эффект:</label>
+                <select id="transition-select">
+                    <option value="fade">Плавное затухание</option>
+                    <option value="slide">Скольжение</option>
+                    <option value="zoom">Увеличение</option>
+                    <option value="none">Без эффекта</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label style="color: white; min-width: 100px;">Порядок:</label>
+                <select id="order-select">
+                    <option value="sequential">Последовательно</option>
+                    <option value="random">Случайно</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Start button -->
+        <button class="btn btn-success" onclick="startSlideshow()" style="margin: 20px 0; padding: 15px 50px; font-size: 20px;">
+            ▶ Начать слайд-шоу
+        </button>
+        
+        <!-- Keyboard hints -->
+        <div class="keyboard-hints">
+            <div class="key-hint"><span class="key-icon">← →</span> Листать</div>
+            <div class="key-hint"><span class="key-icon">Пробел</span> Пауза</div>
+            <div class="key-hint"><span class="key-icon">M</span> Меню</div>
+            <div class="key-hint"><span class="key-icon">F</span> Полный экран</div>
+            <div class="key-hint"><span class="key-icon">↑ ↓</span> Интервал</div>
+        </div>
+        
+        <div id="image-count" style="color: #aaa; margin-top: 10px;"></div>
+    </div>
+    
+    <!-- Slideshow -->
+    <div id="slideshow-container">
+        <img id="slideshow-image" src="" alt="Slideshow" style="opacity: 0;">
+    </div>
+    
+    <!-- Info overlay -->
+    <div id="info-overlay" style="display: none;">
+        <span id="image-counter">0/0</span>
+        <span class="info-badge" id="status-badge">▶</span>
+        <span id="timer-display">5s</span>
+    </div>
+    
+    <!-- Quick settings -->
+    <div id="quick-settings">
+        <div class="setting-chip" onclick="changeInterval()">⏱ Интервал</div>
+        <div class="setting-chip" onclick="toggleShuffle()">🔀 Порядок</div>
+        <div class="setting-chip" onclick="openMenu()">⚙ Меню</div>
+    </div>
+    
+    <!-- Controls bar -->
+    <div id="controls-bar">
+        <button class="control-btn" onclick="prevImage()">⏮</button>
+        <button class="control-btn play-btn" id="play-pause-btn" onclick="togglePlayPause()">⏸</button>
+        <button class="control-btn" onclick="nextImage()">⏭</button>
+        <button class="control-btn" onclick="openMenu()">⚙</button>
+    </div>
+
+    <script>
+        // State
+        let images = [];
+        let currentIndex = 0;
+        let interval = 5;
+        let isPlaying = false;
+        let slideshowTimer = null;
+        let controlsTimeout = null;
+        let transitionEffect = 'fade';
+        let playOrder = 'sequential';
+        
+        // DOM elements
+        const imageElement = document.getElementById('slideshow-image');
+        const counterElement = document.getElementById('image-counter');
+        const controlsBar = document.getElementById('controls-bar');
+        const mainMenu = document.getElementById('main-menu');
+        const infoOverlay = document.getElementById('info-overlay');
+        const quickSettings = document.getElementById('quick-settings');
+        const statusBadge = document.getElementById('status-badge');
+        const timerDisplay = document.getElementById('timer-display');
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const imageCountDiv = document.getElementById('image-count');
+        
+        // Load Google Drive links
+        async function loadGoogleDriveLinks() {
+            const linksText = document.getElementById('gdrive-links').value.trim();
+            
+            if (!linksText) {
+                showStatus('Вставьте ссылки Google Drive');
+                return;
+            }
+            
+            showStatus('Обрабатываем ссылки Google Drive...');
+            
+            // Parse links
+            const links = linksText.split(/[\n,]+/).map(l => l.trim()).filter(l => l);
+            const imageUrls = [];
+            
+            for (let link of links) {
+                // Extract file ID from various Google Drive URL formats
+                let fileId = null;
+                
+                // Try different patterns
+                const patterns = [
+                    /\/d\/([a-zA-Z0-9_-]+)/,           // /d/FILE_ID
+                    /id=([a-zA-Z0-9_-]+)/,              // id=FILE_ID
+                    /\/file\/d\/([a-zA-Z0-9_-]+)/,      // /file/d/FILE_ID
+                    /open\?id=([a-zA-Z0-9_-]+)/,        // open?id=FILE_ID
+                    /^([a-zA-Z0-9_-]{25,})$/,            // Just the ID
+                    /drive\.google\.com\/uc\?export=view&id=([a-zA-Z0-9_-]+)/ // direct link
+                ];
+                
+                for (let pattern of patterns) {
+                    const match = link.match(pattern);
+                    if (match) {
+                        fileId = match[1];
+                        break;
+                    }
+                }
+                
+                if (fileId) {
+                    // Use direct download link format
+                    const directUrl = `https://drive.google.com/uc?export=view&id=${fileId}`;
+                    // Alternative format that sometimes works better
+                    const altUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+                    
+                    imageUrls.push({
+                        url: directUrl,
+                        altUrl: altUrl,
+                        name: `Google Drive Image ${imageUrls.length + 1}`,
+                        id: fileId
+                    });
+                }
+            }
+            
+            if (imageUrls.length > 0) {
+                images = imageUrls;
+                updatePreview();
+                saveState();
+                showStatus(`✅ Загружено ${images.length} изображений`);
+                setTimeout(hideStatus, 2000);
+            } else {
+                showStatus('❌ Не удалось распознать ссылки Google Drive');
+                setTimeout(hideStatus, 3000);
+            }
+        }
+        
+        // Load direct URLs
+        function loadDirectUrls() {
+            const urlsText = document.getElementById('direct-urls').value.trim();
+            
+            if (!urlsText) {
+                showStatus('Вставьте ссылки на изображения');
+                return;
+            }
+            
+            const urls = urlsText.split(/[\n,]+/).map(u => u.trim()).filter(u => u);
+            
+            images = urls.filter(url => {
+                return /\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(url) ||
+                       url.includes('drive.google.com') ||
+                       url.includes('googleusercontent.com') ||
+                       url.includes('dropbox.com') ||
+                       url.includes('icloud.com') ||
+                       url.startsWith('http');
+            }).map((url, index) => ({
+                url: url,
+                name: `Image ${index + 1}`,
+                id: 'direct_' + index
+            }));
+            
+            if (images.length > 0) {
+                updatePreview();
+                saveState();
+                showStatus(`✅ Загружено ${images.length} изображений`);
+                setTimeout(hideStatus, 2000);
+            } else {
+                showStatus('❌ Не найдено допустимых URL изображений');
+                setTimeout(hideStatus, 3000);
+            }
+        }
+        
+        // Paste from clipboard
+        async function pasteFromClipboard() {
+            try {
+                const text = await navigator.clipboard.readText();
+                document.getElementById('gdrive-links').value = text;
+                showStatus('📋 Текст вставлен из буфера обмена');
+                setTimeout(hideStatus, 2000);
+            } catch (err) {
+                showStatus('❌ Не удалось вставить из буфера. Вставьте вручную (Ctrl+V)');
+                setTimeout(hideStatus, 3000);
+            }
+        }
+        
+        // Local file selection
+        function selectLocalFiles() {
+            document.getElementById('file-input').click();
+        }
+        
+        function selectLocalFolder() {
+            document.getElementById('folder-input').click();
+        }
+        
+        function handleFileSelect(event) {
+            const files = event.target.files;
+            
+            if (!files || files.length === 0) return;
+            
+            showStatus(`Загружаем ${files.length} файлов...`);
+            
+            images = [];
+            const promises = [];
+            
+            for (let file of files) {
+                if (file.type.startsWith('image/')) {
+                    const promise = new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            images.push({
+                                url: e.target.result,
+                                name: file.name,
+                                id: 'local_' + Date.now() + Math.random()
+                            });
+                            resolve();
+                        };
+                        reader.onerror = () => {
+                            console.error('Failed to read file:', file.name);
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                    promises.push(promise);
+                }
+            }
+            
+            Promise.all(promises).then(() => {
+                updateLocalPreview();
+                saveState();
+                showStatus(`✅ Загружено ${images.length} локальных изображений`);
+                setTimeout(hideStatus, 2000);
+            });
+        }
+        
+        // Update previews
+        function updatePreview() {
+            updateImageCount();
+        }
+        
+        function updateLocalPreview() {
+            const preview = document.getElementById('local-preview');
+            preview.style.display = 'block';
+            preview.innerHTML = images.slice(0, 15).map((img, i) => 
+                `<div class="file-item">
+                    <span>🖼</span>
+                    <span>${img.name}</span>
+                </div>`
+            ).join('');
+            
+            if (images.length > 15) {
+                preview.innerHTML += `<div class="file-item">... и еще ${images.length - 15} изображений</div>`;
+            }
+            
+            updateImageCount();
+        }
+        
+        function updateImageCount() {
+            imageCountDiv.textContent = images.length > 0 ? 
+                `📊 Загружено изображений: ${images.length}` : '';
+        }
+        
+        // Start slideshow
+        function startSlideshow() {
+            if (images.length === 0) {
+                showStatus('⚠️ Сначала загрузите изображения');
+                setTimeout(hideStatus, 2000);
+                return;
+            }
+            
+            interval = parseInt(document.getElementById('interval-select').value);
+            transitionEffect = document.getElementById('transition-select').value;
+            playOrder = document.getElementById('order-select').value;
+            
+            if (playOrder === 'random') {
+                shuffleArray(images);
+            }
+            
+            localStorage.setItem('slideshow_interval', interval);
+            localStorage.setItem('slideshow_transition', transitionEffect);
+            localStorage.setItem('slideshow_order', playOrder);
+            
+            mainMenu.classList.add('hidden');
+            infoOverlay.style.display = 'flex';
+            quickSettings.classList.add('visible');
+            
+            currentIndex = 0;
+            showImage(currentIndex);
+            isPlaying = true;
+            updatePlayPauseButton();
+            startTimer();
+            updateTimerDisplay();
+            showControls();
+        }
+        
+        // Show image
+        function showImage(index) {
+            if (images.length === 0) return;
+            
+            currentIndex = (index + images.length) % images.length;
+            const currentImage = images[currentIndex];
+            
+            // Apply transition
+            switch(transitionEffect) {
+                case 'fade':
+                    imageElement.style.transition = 'opacity 0.8s ease-in-out';
+                    imageElement.style.opacity = '0';
+                    break;
+                case 'zoom':
+                    imageElement.style.transition = 'opacity 0.5s ease-in-out, transform 0.5s ease-in-out';
+                    imageElement.style.transform = 'scale(0.95)';
+                    imageElement.style.opacity = '0';
+                    break;
+                case 'slide':
+                    imageElement.style.transition = 'none';
+                    imageElement.style.transform = 'translateX(100%)';
+                    imageElement.style.opacity = '1';
+                    break;
+                case 'none':
+                    imageElement.style.transition = 'none';
+                    imageElement.style.opacity = '0';
+                    break;
+            }
+            
+            setTimeout(() => {
+                // Try primary URL, fallback to alternative
+                imageElement.src = currentImage.url;
+                
+                imageElement.onload = () => {
+                    applyTransitionEffect();
+                };
+                
+                imageElement.onerror = () => {
+                    console.error('Failed to load primary URL:', currentImage.name);
+                    
+                    // Try alternative URL if available
+                    if (currentImage.altUrl) {
+                        console.log('Trying alternative URL...');
+                        imageElement.src = currentImage.altUrl;
+                        
+                        imageElement.onerror = () => {
+                            console.error('All URLs failed for:', currentImage.name);
+                            setTimeout(() => nextImage(), 2000);
+                        };
+                    } else {
+                        setTimeout(() => nextImage(), 2000);
+                    }
+                };
+            }, 300);
+            
+            counterElement.textContent = `${currentIndex + 1}/${images.length}`;
+        }
+        
+        function applyTransitionEffect() {
+            switch(transitionEffect) {
+                case 'fade':
+                    imageElement.style.opacity = '1';
+                    break;
+                case 'zoom':
+                    imageElement.style.opacity = '1';
+                    imageElement.style.transform = 'scale(1)';
+                    break;
+                case 'slide':
+                    setTimeout(() => {
+                        imageElement.style.transition = 'transform 0.5s ease-out';
+                        imageElement.style.transform = 'translateX(0)';
+                    }, 50);
+                    break;
+                case 'none':
+                    imageElement.style.opacity = '1';
+                    break;
+            }
+        }
+        
+        function nextImage() {
+            if (playOrder === 'random') {
+                currentIndex = Math.floor(Math.random() * images.length);
+            } else {
+                currentIndex++;
+            }
+            showImage(currentIndex);
+        }
+        
+        function prevImage() {
+            currentIndex--;
+            showImage(currentIndex);
+        }
+        
+        function startTimer() {
+            stopTimer();
+            if (isPlaying) {
+                slideshowTimer = setInterval(() => {
+                    nextImage();
+                }, interval * 1000);
+            }
+        }
+        
+        function stopTimer() {
+            if (slideshowTimer) {
+                clearInterval(slideshowTimer);
+                slideshowTimer = null;
+            }
+        }
+        
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            updatePlayPauseButton();
+            
+            if (isPlaying) {
+                startTimer();
+            } else {
+                stopTimer();
+            }
+        }
+        
+        function updatePlayPauseButton() {
+            if (isPlaying) {
+                playPauseBtn.innerHTML = '⏸';
+                statusBadge.textContent = '▶';
+                statusBadge.style.background = '#0f9d58';
+            } else {
+                playPauseBtn.innerHTML = '▶';
+                statusBadge.textContent = '⏸';
+                statusBadge.style.background = '#f4b400';
+            }
+        }
+        
+        function updateTimerDisplay() {
+            timerDisplay.textContent = `${interval}s`;
+        }
+        
+        function changeInterval() {
+            const intervals = [2, 5, 10, 15, 30, 60, 120, 300];
+            const currentIdx = intervals.indexOf(interval);
+            const nextIdx = (currentIdx + 1) % intervals.length;
+            interval = intervals[nextIdx];
+            localStorage.setItem('slideshow_interval', interval);
+            updateTimerDisplay();
+            document.getElementById('interval-select').value = interval;
+            
+            if (isPlaying) startTimer();
+            
+            showStatus(`⏱ Интервал: ${interval}с`);
+            setTimeout(hideStatus, 1500);
+        }
+        
+        function toggleShuffle() {
+            playOrder = playOrder === 'sequential' ? 'random' : 'sequential';
+            
+            if (playOrder === 'random') {
+                shuffleArray(images);
+            }
+            
+            document.getElementById('order-select').value = playOrder;
+            localStorage.setItem('slideshow_order', playOrder);
+            
+            showStatus(playOrder === 'random' ? '🔀 Случайный порядок' : '➡ Последовательно');
+            setTimeout(hideStatus, 1500);
+        }
+        
+        function openMenu() {
+            mainMenu.classList.remove('hidden');
+            stopTimer();
+            isPlaying = false;
+            updatePlayPauseButton();
+            infoOverlay.style.display = 'none';
+            quickSettings.classList.remove('visible');
+        }
+        
+        function showControls() {
+            controlsBar.classList.add('visible');
+            quickSettings.classList.add('visible');
+            
+            clearTimeout(controlsTimeout);
+            controlsTimeout = setTimeout(() => {
+                controlsBar.classList.remove('visible');
+                quickSettings.classList.remove('visible');
+            }, 5000);
+        }
+        
+        function showStatus(message) {
+            let statusEl = document.querySelector('.status-message');
+            if (!statusEl) {
+                statusEl = document.createElement('div');
+                statusEl.className = 'status-message';
+                document.body.appendChild(statusEl);
+            }
+            statusEl.innerHTML = message.replace(/\n/g, '<br>');
+            statusEl.style.display = 'block';
+        }
+        
+        function hideStatus() {
+            const statusEl = document.querySelector('.status-message');
+            if (statusEl) {
+                statusEl.style.display = 'none';
+            }
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function saveState() {
+            try {
+                const imagesMeta = images.map(img => ({
+                    url: img.url,
+                    altUrl: img.altUrl || null,
+                    name: img.name,
+                    id: img.id
+                }));
+                
+                localStorage.setItem('slideshow_images_meta', JSON.stringify(imagesMeta));
+                localStorage.setItem('slideshow_interval', interval);
+                localStorage.setItem('slideshow_transition', transitionEffect);
+                localStorage.setItem('slideshow_order', playOrder);
+            } catch (e) {
+                console.error('Failed to save state:', e);
+            }
+        }
+        
+        function loadState() {
+            const savedInterval = localStorage.getItem('slideshow_interval');
+            const savedTransition = localStorage.getItem('slideshow_transition');
+            const savedOrder = localStorage.getItem('slideshow_order');
+            const savedImagesMeta = localStorage.getItem('slideshow_images_meta');
+            
+            if (savedInterval) {
+                interval = parseInt(savedInterval);
+                document.getElementById('interval-select').value = interval;
+                updateTimerDisplay();
+            }
+            
+            if (savedTransition) {
+                transitionEffect = savedTransition;
+                document.getElementById('transition-select').value = transitionEffect;
+            }
+            
+            if (savedOrder) {
+                playOrder = savedOrder;
+                document.getElementById('order-select').value = playOrder;
+            }
+            
+            if (savedImagesMeta) {
+                try {
+                    images = JSON.parse(savedImagesMeta);
+                    updateImageCount();
+                } catch (e) {
+                    console.error('Failed to load saved images');
+                }
+            }
+        }
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (mainMenu.classList.contains('hidden')) {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        prevImage();
+                        showControls();
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        nextImage();
+                        showControls();
+                        break;
+                    case ' ':
+                        e.preventDefault();
+                        togglePlayPause();
+                        showControls();
+                        break;
+                    case 'm':
+                    case 'M':
+                        openMenu();
+                        break;
+                    case 'f':
+                    case 'F':
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        } else {
+                            document.documentElement.requestFullscreen();
+                        }
+                        break;
+                    case 'ArrowUp':
+                        changeInterval();
+                        break;
+                    case 'ArrowDown':
+                        toggleShuffle();
+                        break;
+                }
+            }
+        });
+        
+        document.addEventListener('mousemove', () => {
+            if (!mainMenu.classList.contains('hidden')) return;
+            showControls();
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (e.target === imageElement || e.target.id === 'slideshow-container') {
+                showControls();
+            }
+        });
+        
+        let touchStartX = 0;
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+        
+        document.addEventListener('touchend', (e) => {
+            if (mainMenu.classList.contains('hidden')) {
+                const touchEndX = e.changedTouches[0].clientX;
+                const diff = touchStartX - touchEndX;
+                
+                if (Math.abs(diff) > 50) {
+                    if (diff > 0) nextImage();
+                    else prevImage();
+                    showControls();
+                }
+            }
+        });
+        
+        // Initialize
+        loadState();
+    </script>
+</body>
+</html>
